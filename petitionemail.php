@@ -322,8 +322,8 @@ function petitionemail_civicrm_postProcess( $formName, &$form ) {
                            FROM civicrm_petition_email
                           WHERE petition_id = %1";
     $checkexisting_params = array( 1 => array( $survey_id, 'Integer' ) );
-    $checkexisting = CRM_Core_DAO::singleValueQuery( $checkexisting_sql, $checkexisting_params );
 
+    $checkexisting = CRM_Core_DAO::singleValueQuery( $checkexisting_sql, $checkexisting_params );
     if ( $checkexisting == 0 ) {
       $petitionemail_data_sql = "INSERT INTO civicrm_petition_email (
                                              petition_id, 
@@ -340,6 +340,14 @@ function petitionemail_civicrm_postProcess( $formName, &$form ) {
                                              %5, 
                                              %6 
                                     )";
+
+      $petitionemail_data_params = array( 1 => array( $survey_id, 'Integer' ),
+                                          2 => array( $recipient, 'String' ),
+                                          3 => array( $recipient_name, 'String' ),
+                                          4 => array( $default_message, 'String' ),
+                                          5 => array( $user_message, 'String' ),
+                                          6 => array( $subjectline, 'String' ),
+                                         );
     } else {
       $petitionemail_data_sql = "UPDATE civicrm_petition_email
                                     SET recipient_email = %2,
@@ -348,17 +356,21 @@ function petitionemail_civicrm_postProcess( $formName, &$form ) {
                                         message_field = %5,
                                         subject = %6
                                   WHERE petition_id = %1";
+
+      $petitionemail_data_params = array( 1 => array( $survey_id, 'Integer' ),
+                                          2 => array( $recipient, 'String' ),
+                                          3 => array( $recipient_name, 'String' ),
+                                          4 => array( $default_message, 'String' ),
+                                          5 => array( $user_message, 'String' ),
+                                          6 => array( $subjectline, 'String' ),
+                                         );
     }
-
-    $petitionemail_data_params = array( 1 => array( $survey_id, 'Integer' ),
-                                        2 => array( $recipient, 'String' ),
-                                        3 => array( $recipient_name, 'String' ),
-                                        4 => array( $default_message, 'String' ),
-                                        5 => array( $user_message, 'String' ),
-                                        6 => array( $subjectline, 'String' ),
-                                       );
-
     $petitionemail = CRM_Core_DAO::executeQuery( $petitionemail_data_sql, $petitionemail_data_params );
+
+    //FIXME Add failed database write check
+    //if (!$insert) {
+    //  CRM_Core_Session::setStatus( ts('Could not save petition delivery information.') ); 
+    //}
   }
 }
 
@@ -382,6 +394,7 @@ function petitionemail_civicrm_post( $op, $objectName, $objectId, &$objectRef ) 
     if ($objectRef->activity_type_id == $petitiontype) {
       $survey_id = $objectRef->source_record_id;
       $activity_id = $objectRef->id;
+      global $language;  
       $petitionemail_get_sql = "SELECT petition_id, 
                                        recipient_email, 
                                        recipient_name, 
@@ -417,7 +430,6 @@ function petitionemail_civicrm_post( $op, $objectName, $objectId, &$objectRef ) 
             }
           }
         } 
-
         // No user supplied message, use the default
         if(is_null($petition_message)) {
           $petition_message = $petitionemail_get->default_message;
